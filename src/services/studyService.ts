@@ -79,8 +79,12 @@ export async function saveWeeksPlanToFirestore(weeks: WeekPlan[]): Promise<void>
 
   try {
     const docRef = doc(db, 'system', 'weeks_plan');
+    
+    // CORREÇÃO APLICADA AQUI: Limpa os dados de campos 'undefined' antes de enviar ao Firestore
+    const cleanedWeeks = JSON.parse(JSON.stringify(weeks));
+    
     await setDoc(docRef, {
-      weeks,
+      weeks: cleanedWeeks,
       updatedAt: new Date().toISOString(),
       updatedBy: currentUser?.email || currentUser?.uid || 'coordinator'
     });
