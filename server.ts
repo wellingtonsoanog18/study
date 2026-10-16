@@ -1,4 +1,6 @@
 import express from 'express';
+import path from 'path';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
@@ -6,7 +8,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+// Render automatically assigns a dynamic port via process.env.PORT
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -52,7 +55,12 @@ app.post('/api/gemini/generate', async (req, res) => {
   }
 });
 
-// Mount Vite middleware in development or static in production
+// Health check endpoint for deployment platforms
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Mount Vite middleware in development or serve static built files in production
 const isProd = process.env.NODE_ENV === 'production';
 
 if (!isProd) {
@@ -62,12 +70,20 @@ if (!isProd) {
   });
   app.use(vite.middlewares);
 } else {
-  app.use(express.static('dist'));
+  const distPath = path.resolve(process.cwd(), 'dist');
+  const indexPath = path.resolve(distPath, 'index.html');
+
+  app.use(express.static(distPath));
+
   app.get('*', (_req, res) => {
-    res.sendFile('dist/index.html', { root: '.' });
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      res.status(404).send('Not Found: arquivos do build não encontrados em dist/. Certifique-se de que o Build Command é "npm run build".');
+    }
   });
 }
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`StudyFlow Pro Server running on http://0.0.0.0:${PORT}`);
+  console.log(`StudyFlow Pro Server listening on port ${PORT}`);
 });
