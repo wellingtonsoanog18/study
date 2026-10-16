@@ -1,0 +1,84 @@
+{
+  "entities": {
+    "SystemDoc": {
+      "title": "System Configuration Document",
+      "description": "Global system configurations such as weekly study plans and official coordination materials.",
+      "type": "object",
+      "properties": {
+        "updatedAt": {
+          "type": "string",
+          "description": "Last update timestamp"
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "UID or email of the administrator who made the update",
+          "maxLength": 128
+        }
+      },
+      "required": ["updatedAt"]
+    },
+    "UserProfile": {
+      "title": "User Study Profile & Progress",
+      "description": "Student progress, completion checkmarks, study notes, pomodoro statistics and personal attachments.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique user ID",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "Student email address",
+          "maxLength": 256
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Student display name",
+          "maxLength": 128
+        },
+        "pomodoroMinutes": {
+          "type": "number",
+          "description": "Total focused study minutes accumulated"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last updated timestamp"
+        }
+      },
+      "required": ["uid", "email"]
+    },
+    "AdminRecord": {
+      "title": "Admin Permission Record",
+      "description": "Super admin or coordination privilege marker.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "Administrator email",
+          "maxLength": 256
+        },
+        "role": {
+          "type": "string",
+          "description": "Role string, e.g. coordinator or admin",
+          "maxLength": 50
+        }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/system/{systemDocId}": {
+      "schema": "SystemDoc",
+      "description": "Global system documents including weeks_plan and official_materials."
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Student profile, progress data, notes, and metrics."
+    },
+    "/admins/{adminId}": {
+      "schema": "AdminRecord",
+      "description": "List of system administrators and coordinators."
+    }
+  }
+}

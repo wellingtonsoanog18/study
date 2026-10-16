@@ -1,0 +1,6 @@
+{
+  "name": "StudyFlow Pro - Gestão de Estudos e Mentoria Semanal",
+  "description": "Plataforma completa de gestão de estudos e mentoria semanal com cronograma dinâmico, metas, videoaulas, pomodoro e banco de dados em tempo real.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

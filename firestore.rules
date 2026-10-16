@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Default Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'wellington.nogueira18@gmail.com' && request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // System collection: weeks_plan, official_materials
+    match /system/{systemDocId} {
+      // Anyone can read the week plans or official materials to render the timetable
+      allow get: if isValidId(systemDocId);
+      allow list: if true;
+      // Only validated coordinators / administrators can write or modify
+      allow create, update, delete: if isValidId(systemDocId) && isAdmin();
+    }
+
+    // Users collection: student study progress, notes, pomodoro statistics
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isSignedIn() && (isAdmin() || (resource != null && resource.data.uid == request.auth.uid));
+      allow create: if isValidId(userId) && isOwner(userId) && request.resource.data.uid == request.auth.uid;
+      allow update: if isValidId(userId) && (isOwner(userId) || isAdmin()) && request.resource.data.uid == resource.data.uid;
+      allow delete: if isValidId(userId) && (isOwner(userId) || isAdmin());
+    }
+
+    // Admins collection
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isValidId(adminId) && isAdmin();
+    }
+  }
+}
