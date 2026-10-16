@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged,
   User
@@ -36,6 +38,7 @@ import { QuestionsTracker } from './components/QuestionsTracker';
 import { ManageWeeksModal } from './components/ManageWeeksModal';
 import { RestrictedWeekNotice } from './components/RestrictedWeekNotice';
 import { MementoGeneratorModal } from './components/MementoGeneratorModal';
+import { AuthErrorModal } from './components/AuthErrorModal';
 
 // Bootstrapped Admin specified in requirements
 const PRIMARY_ADMIN_EMAIL = 'wellington.nogueira18@gmail.com';
@@ -72,8 +75,18 @@ export default function App() {
     blockKey?: string;
   } | null>(null);
 
-  // Auth observer
+  const [authErrorInfo, setAuthErrorInfo] = useState<{
+    title: string;
+    desc: string;
+    domain?: string;
+  } | null>(null);
+
+  // Auth observer and redirect result handler
   useEffect(() => {
+    getRedirectResult(auth).catch((err) => {
+      console.warn('Redirect auth check:', err);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setAuthLoading(false);
@@ -300,12 +313,46 @@ export default function App() {
 
   // Google Login / Logout
   const handleGoogleLogin = async () => {
+    setAuthErrorInfo(null);
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Google sign-in error:', err);
-      // Helpful fallback notice for sandbox iframe if popup is blocked
-      alert('Autenticação com Google iniciada. Certifique-se de permitir janelas pop-up no seu navegador para conectar sua conta.');
+      const authError = err as { code?: string; message?: string };
+      const code = authError?.code || '';
+
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        // User voluntarily dismissed popup
+        return;
+      }
+
+      if (code === 'auth/unauthorized-domain') {
+        const currentHostname = window.location.hostname;
+        setAuthErrorInfo({
+          title: 'Domínio Não Autorizado no Firebase',
+          desc: `O Firebase bloqueou o login porque o domínio "${currentHostname}" ainda não está na lista de Domínios Autorizados do seu projeto Firebase.`,
+          domain: currentHostname
+        });
+        return;
+      }
+
+      if (code === 'auth/popup-blocked') {
+        try {
+          // Automatic seamless redirect fallback if popup is blocked by browser
+          await signInWithRedirect(auth, googleProvider);
+        } catch {
+          setAuthErrorInfo({
+            title: 'Pop-up Bloqueado',
+            desc: 'O navegador bloqueou a abertura do pop-up de login. Por favor, permita pop-ups para este site nas configurações do navegador.'
+          });
+        }
+        return;
+      }
+
+      setAuthErrorInfo({
+        title: 'Erro ao Conectar com Google',
+        desc: authError?.message || 'Falha ao autenticar. Verifique sua conexão e tente novamente.'
+      });
     }
   };
 
@@ -509,6 +556,13 @@ export default function App() {
             wrong: prev.wrong
           });
         }}
+      />
+
+      {/* Firebase Authentication Error & Domain Authorization Guide Modal */}
+      <AuthErrorModal
+        isOpen={Boolean(authErrorInfo)}
+        onClose={() => setAuthErrorInfo(null)}
+        errorInfo={authErrorInfo}
       />
     </div>
   );
